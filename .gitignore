@@ -1,0 +1,9 @@
+node_modules/
+tokens/
+.wwebjs_auth/
+*.log
+*.sqlite
+*.db
+*.lock
+.env
+*.json
