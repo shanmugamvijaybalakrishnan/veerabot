@@ -1,8 +1,7 @@
-// veerabot final version with sheet integration and corrected flow
-
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
+const path = require('path');
 const { google } = require('googleapis');
 const creds = require('./creds.json');
 
@@ -10,7 +9,21 @@ const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
 const SHEET_NAME = 'Sheet1';
 
-const client = new Client({ authStrategy: new LocalAuth() });
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // check if correct
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+    ],
+  },
+});
+
 let userData = {};
 
 // Google Auth
@@ -20,7 +33,7 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: 'v4', auth });
 
-// Helper to append row to Google Sheet
+// Save to Sheet
 async function saveToSheet(data) {
   const row = [
     new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
@@ -43,7 +56,6 @@ async function saveToSheet(data) {
     console.error('❌ Sheet error:', error);
   }
 
-  // Also save to local JSON as backup
   try {
     const backup = JSON.parse(fs.readFileSync('backup.json', 'utf8'));
     backup.push(row);
@@ -102,17 +114,17 @@ Type: Retreat / Store / Investment / Multiple`);
     await msg.reply(`🌈 Thank you, beloved.
 Now, to enter this sacred circle, please make your contribution 💸 as guided below:
 
-*Retreat:* ₹6666
-*Store Membership:* ₹369/year
+*Retreat:* ₹6666  
+*Store Membership:* ₹369/year  
 *Investment:* Minimum ₹6000 (returns 3% monthly)
 
 🔐 *Contribution Account Details:*
-Account Name: **Boysenberry Marketing Private Limited**
-A/C No: **728405500004**
-IFSC: **ICIC0007284**
+Account Name: **Boysenberry Marketing Private Limited**  
+A/C No: **728405500004**  
+IFSC: **ICIC0007284**  
 UPI: **9443963973@okbizaxis**
 
-💫 You can choose *any one* or *multiple* offerings from above.
+💫 You can choose *any one* or *multiple* offerings from above.  
 Once done, send the *Transaction ID* only. 🧾`);
     u.step++;
   } else if (u.step === 4) {
