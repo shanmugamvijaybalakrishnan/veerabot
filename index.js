@@ -1,7 +1,7 @@
+const puppeteer = require('puppeteer'); // add this at the top
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
-const path = require('path');
 const { google } = require('googleapis');
 const creds = require('./creds.json');
 
@@ -12,7 +12,7 @@ const SHEET_NAME = 'Sheet1';
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // check if correct
+    executablePath: puppeteer.executablePath(), // ✅ THIS LINE FIXES THE ERROR
     headless: true,
     args: [
       '--no-sandbox',
@@ -33,10 +33,10 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: 'v4', auth });
 
-// Save to Sheet
+// Save to Google Sheet + Local JSON
 async function saveToSheet(data) {
   const row = [
-    new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
     data.type,
     data.name,
     data.phone,
@@ -53,7 +53,7 @@ async function saveToSheet(data) {
     });
     console.log('✅ Saved to Google Sheet.');
   } catch (error) {
-    console.error('❌ Sheet error:', error);
+    console.error('❌ Sheet error:', error.message);
   }
 
   try {
@@ -77,11 +77,7 @@ client.on('ready', () => {
 client.on('message', async msg => {
   const id = msg.from;
   const text = msg.body.trim();
-
-  if (!userData[id]) {
-    userData[id] = { step: 0, whatsappId: id };
-  }
-
+  if (!userData[id]) userData[id] = { step: 0, whatsappId: id };
   const u = userData[id];
 
   if (u.step === 0) {
@@ -118,7 +114,7 @@ Now, to enter this sacred circle, please make your contribution 💸 as guided b
 *Store Membership:* ₹369/year  
 *Investment:* Minimum ₹6000 (returns 3% monthly)
 
-🔐 *Contribution Account Details:*
+🔐 *Contribution Account Details:*  
 Account Name: **Boysenberry Marketing Private Limited**  
 A/C No: **728405500004**  
 IFSC: **ICIC0007284**  
@@ -132,9 +128,9 @@ Once done, send the *Transaction ID* only. 🧾`);
     await msg.reply(`💠 Thank you, ${u.name}. Your offering has been received in the field of light. 🌟
 🧙‍♂️ Our Admin Soul is verifying the divine transaction.
 
-You will soon receive your sacred link or confirmation for:
-- 🕉️ Retreat Registration
-- 🌍 Store Membership Access
+You will soon receive your sacred link or confirmation for:  
+- 🕉️ Retreat Registration  
+- 🌍 Store Membership Access  
 - 💚 Investment Gateway
 
 May divine blessings be with you. You are now a radiant node in the ZentiumX Soul Network. 🔮`);
