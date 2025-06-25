@@ -1,4 +1,3 @@
-const puppeteer = require('puppeteer'); // add this at the top
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
@@ -12,16 +11,13 @@ const SHEET_NAME = 'Sheet1';
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: puppeteer.executablePath(), // ✅ THIS LINE FIXES THE ERROR
     headless: true,
+    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // adjust this!
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-    ],
-  },
+    ]
+  }
 });
 
 let userData = {};
