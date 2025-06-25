@@ -1,21 +1,20 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
-const os = require('os');
 const { google } = require('googleapis');
 const creds = require('./creds.json');
+const os = require('os'); // ✅ Only once, right here
 
-// Google Sheets setup
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
 const SHEET_NAME = 'Sheet1';
 
-// Puppeteer config per OS
+// ✅ OS-based Chrome/Chromium path
 let executablePath;
 if (os.platform() === 'win32') {
   executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-} else if (os.platform() === 'linux') {
-  executablePath = '/usr/bin/chromium-browser'; // For AWS
+} else {
+  executablePath = '/usr/bin/chromium-browser'; // fallback: '/usr/bin/chromium'
 }
 
 const client = new Client({
@@ -23,10 +22,9 @@ const client = new Client({
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath: executablePath
-  }
+    executablePath,
+  },
 });
-
 let userData = {};
 
 // Google Auth

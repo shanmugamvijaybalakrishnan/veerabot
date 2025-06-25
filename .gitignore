@@ -11,3 +11,6 @@ tokens/
 # Allow these important files
 !package.json
 !package-lock.json
+creds.json
+veerabot-*.json
+ 
