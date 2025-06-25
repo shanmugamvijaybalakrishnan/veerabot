@@ -1,16 +1,17 @@
+n# Node modules
 node_modules/
-tokens/
+
+# WhatsApp auth & cache files
 .wwebjs_auth/
 .wwebjs_cache/
+
+# Logs and databases
 *.log
 *.sqlite
 *.db
 *.lock
-.env
 
-# Allow these important files
-!package.json
-!package-lock.json
+# Environment variables or secrets
+.env
 creds.json
 veerabot-*.json
- 
