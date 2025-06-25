@@ -1,22 +1,29 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
+const os = require('os');
 const { google } = require('googleapis');
 const creds = require('./creds.json');
 
+// Google Sheets setup
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
 const SHEET_NAME = 'Sheet1';
+
+// Puppeteer config per OS
+let executablePath;
+if (os.platform() === 'win32') {
+  executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+} else if (os.platform() === 'linux') {
+  executablePath = '/usr/bin/chromium-browser'; // For AWS
+}
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // adjust this!
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-    ]
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: executablePath
   }
 });
 
@@ -29,7 +36,7 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: 'v4', auth });
 
-// Save to Google Sheet + Local JSON
+// Save to Google Sheet + backup.json
 async function saveToSheet(data) {
   const row = [
     new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -61,6 +68,7 @@ async function saveToSheet(data) {
   }
 }
 
+// WhatsApp Event Handlers
 client.on('qr', qr => {
   qrcode.generate(qr, { small: true });
   console.log('📲 Scan QR Code to connect WhatsApp.');
