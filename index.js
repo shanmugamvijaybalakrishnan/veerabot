@@ -22,7 +22,7 @@ setTimeout(() => client.initialize(), 1000);
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    headless: true,
+   headless: 'new',
     executablePath: executablePath,
     args: [
       '--no-sandbox',
