@@ -17,6 +17,7 @@ if (os.platform() === 'win32') {
   executablePath = '/usr/bin/google-chrome';
 }
 console.log('Launching puppeteer with executablePath:', executablePath);
+setTimeout(() => client.initialize(), 1000);
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -151,4 +152,5 @@ May divine blessings be with you. You are now a radiant node in the ZentiumX Sou
   }
 });
 
-client.initialize();
+
+
