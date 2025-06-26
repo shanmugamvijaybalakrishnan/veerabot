@@ -12,18 +12,28 @@ const SHEET_NAME = 'Sheet1';
 // ✅ OS-based Chrome/Chromium path
 let executablePath;
 if (os.platform() === 'win32') {
-  executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-} else {
-  executablePath = '/usr/bin/chromium-browser'; // fallback: '/usr/bin/chromium'
+  executablePath = undefined;
+} else if (os.platform() === 'linux') {
+  executablePath = '/usr/bin/google-chrome';
 }
+console.log('Launching puppeteer with executablePath:', executablePath);
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath,
-  },
+    executablePath: executablePath,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  }
 });
 let userData = {};
 
