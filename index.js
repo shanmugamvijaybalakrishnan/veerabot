@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 (async () => {
   const fs = require('fs');
   const os = require('os');
