@@ -9,6 +9,25 @@ const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
 const SHEET_NAME = 'Sheet1';
 
+// Persistent storage paths
+const PERSISTENT_DATA_PATH = process.env.RENDER_DISK_MOUNT_PATH || '.'; // Use Render's env var or default to current dir for local dev
+const SESSION_PATH = `${PERSISTENT_DATA_PATH}/session`;
+const BACKUP_FILE_PATH = `${PERSISTENT_DATA_PATH}/backup.json`;
+const CACHE_PATH = `${PERSISTENT_DATA_PATH}/.wwebjs_cache`; // Renamed to include dot
+
+// Ensure these directories exist
+// Create PERSISTENT_DATA_PATH first if it's a subdirectory like './data' and not just '.'
+if (PERSISTENT_DATA_PATH !== '.' && !fs.existsSync(PERSISTENT_DATA_PATH)) {
+  fs.mkdirSync(PERSISTENT_DATA_PATH, { recursive: true });
+}
+if (!fs.existsSync(SESSION_PATH)) {
+  fs.mkdirSync(SESSION_PATH, { recursive: true });
+}
+// The .wwebjs_cache is often created by the library itself.
+// We might need to configure the client to use CACHE_PATH if possible,
+// or ensure its default location within PERSISTENT_DATA_PATH is used.
+// For now, we'll ensure the base path exists.
+
 // ✅ OS-based Chrome/Chromium path
 let executablePath;
 if (os.platform() === 'win32') {
@@ -20,10 +39,16 @@ console.log('Launching puppeteer with executablePath:', executablePath);
 
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: SESSION_PATH }),
   puppeteer: {
-   headless: 'true',
+    headless: 'true', // Ensure this is a string 'true' as per original, or boolean true
     executablePath: executablePath,
+    // userDataDir: CACHE_PATH, // Optional: Puppeteer's own cache. whatsapp-web.js's .wwebjs_cache might be separate.
+                                // The .wwebjs_cache directory is often created at the project root or near the session path.
+                                // By setting dataPath for LocalAuth, related cache might go there.
+                                // If .wwebjs_cache still appears at root, and needs persistence,
+                                // we might need to symlink or find a specific client option.
+                                // For now, focusing on session and backup.json persistence.
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -69,11 +94,19 @@ async function saveToSheet(data) {
   }
 
   try {
-    const backup = JSON.parse(fs.readFileSync('backup.json', 'utf8'));
+    let backup = [];
+    if (fs.existsSync(BACKUP_FILE_PATH)) { // Check if file exists before reading
+      const fileContent = fs.readFileSync(BACKUP_FILE_PATH, 'utf8');
+      if (fileContent) { // Ensure content is not empty before parsing
+        backup = JSON.parse(fileContent);
+      }
+    }
     backup.push(row);
-    fs.writeFileSync('backup.json', JSON.stringify(backup, null, 2));
-  } catch {
-    fs.writeFileSync('backup.json', JSON.stringify([row], null, 2));
+    fs.writeFileSync(BACKUP_FILE_PATH, JSON.stringify(backup, null, 2));
+  } catch (error) { // Catch specific errors if possible, or broader if writing initial file
+    console.error('❌ Backup file error:', error.message);
+    // Attempt to write a new file if read failed or it was empty/corrupt, or if it's the first run
+    fs.writeFileSync(BACKUP_FILE_PATH, JSON.stringify([row], null, 2));
   }
 }
 
