@@ -1,4 +1,3 @@
-
 (async () => {
   const fs = require('fs');
   const os = require('os');
@@ -6,81 +5,29 @@
   const { google } = require('googleapis');
   const { Client, LocalAuth } = require('whatsapp-web.js');
   const creds = require('./creds.json');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const fs = require('fs');
-const { google } = require('googleapis');
-const creds = require('./creds.json');
-const os = require('os'); // ✅ Only once, right here
->>>>>>> 8d35fc62d1893ed753d4bcdfe3e13b39cb77791b
 
-  // Dynamically import ESM fetch-blob and patch global.Blob
+  // Polyfill for Blob and FormData required by Google Auth libs
   const { Blob } = await import('fetch-blob');
-  global.Blob = Blob;
-
-<<<<<<< HEAD
-  // Optional but safe if node-fetch is needed for polyfill
+  const { FormData } = await import('formdata-node');
   const fetch = require('node-fetch');
+
+  global.Blob = Blob;
+  global.FormData = FormData;
   global.fetch = fetch;
   global.Headers = fetch.Headers;
   global.Request = fetch.Request;
   global.Response = fetch.Response;
 
-const { FormData } = await import('formdata-node');
-global.FormData = FormData;
   const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
   const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
   const SHEET_NAME = 'Sheet1';
-=======
-// ✅ OS-based Chrome/Chromium path
-let executablePath;
-if (os.platform() === 'win32') {
-  executablePath = undefined;
-} else if (os.platform() === 'linux') {
-  executablePath = '/usr/bin/google-chrome';
-}
-console.log('Launching puppeteer with executablePath:', executablePath);
-
-
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-   headless: 'true',
-    executablePath: executablePath,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu'
-    ]
-  }
-});
-let userData = {};
->>>>>>> 8d35fc62d1893ed753d4bcdfe3e13b39cb77791b
 
   const BASE_PERSISTENT_PATH = process.env.VEERABOT_DATA_PATH || './data_veerabot';
   const SESSION_PATH = `${BASE_PERSISTENT_PATH}/session`;
   const BACKUP_FILE_PATH = `${BASE_PERSISTENT_PATH}/backup.json`;
 
-<<<<<<< HEAD
   if (!fs.existsSync(BASE_PERSISTENT_PATH)) fs.mkdirSync(BASE_PERSISTENT_PATH, { recursive: true });
   if (!fs.existsSync(SESSION_PATH)) fs.mkdirSync(SESSION_PATH, { recursive: true });
-=======
-// Save to Google Sheet + backup.json
-async function saveToSheet(data) {
-  const row = [
-    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-    data.type,
-    data.name,
-    data.phone,
-    data.txn,
-    data.whatsappId,
-  ];
->>>>>>> 8d35fc62d1893ed753d4bcdfe3e13b39cb77791b
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_PATH }),
@@ -150,17 +97,9 @@ async function saveToSheet(data) {
     console.log('📲 Scan QR Code to connect WhatsApp.');
   });
 
-<<<<<<< HEAD
   client.on('ready', () => {
     console.log('✅ VeeraBot is ready and online!');
   });
-=======
-// WhatsApp Event Handlers
-client.on('qr', qr => {
-  qrcode.generate(qr, { small: true });
-  console.log('📲 Scan QR Code to connect WhatsApp.');
-});
->>>>>>> 8d35fc62d1893ed753d4bcdfe3e13b39cb77791b
 
   client.on('auth_failure', msg => {
     console.error('❌ WhatsApp Authentication Failure:', msg);
@@ -230,7 +169,6 @@ You will soon receive your sacred link or confirmation for:
 - 💚 Investment Gateway
 
 May divine blessings be with you. You are now a radiant node in the ZentiumX Soul Network. 🔮`);
-<<<<<<< HEAD
       await saveToSheet(u);
       delete userData[id];
     }
@@ -239,17 +177,8 @@ May divine blessings be with you. You are now a radiant node in the ZentiumX Sou
   console.log('🚀 Initializing WhatsApp client...');
   await client.initialize();
 
-})(); // ✅ This properly closes your async IIFE
-=======
-    await saveToSheet(u);
-    delete userData[id];
-  }
-});
-client.initialize();
+})(); // End of async wrapper
 
-
-
->>>>>>> 8d35fc62d1893ed753d4bcdfe3e13b39cb77791b
 
 
 
