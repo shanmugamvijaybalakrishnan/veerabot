@@ -6,7 +6,6 @@
   const { google } = require('googleapis');
   const { Client, LocalAuth } = require('whatsapp-web.js');
   const creds = require('./creds.json');
-=======
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
