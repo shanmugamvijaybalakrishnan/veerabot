@@ -1,71 +1,66 @@
+const fetch = require('node-fetch');
+
+global.fetch = fetch;
+global.Headers = fetch.Headers;
+global.Request = fetch.Request;
+global.Response = fetch.Response;
+
+// The rest of your existing code...
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const { google } = require('googleapis');
-const creds = require('./creds.json');
-const os = require('os'); // ✅ Only once, right here
+const creds = require('./creds.json'); // Ensure creds.json is in the same directory or provide correct path
+const os = require('os');
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E';
-const SHEET_NAME = 'Sheet1';
+const SHEET_ID = '12NovtM8TpVW3vfYNEtRMNd6jXFtnti3gdTqS3q8wg0E'; // Ensure this is your correct Sheet ID
+const SHEET_NAME = 'Sheet1'; // Ensure this is your correct Sheet Name
 
-// Persistent storage paths
-const PERSISTENT_DATA_PATH = process.env.RENDER_DISK_MOUNT_PATH || '.'; // Use Render's env var or default to current dir for local dev
-const SESSION_PATH = `${PERSISTENT_DATA_PATH}/session`;
-const BACKUP_FILE_PATH = `${PERSISTENT_DATA_PATH}/backup.json`;
-const CACHE_PATH = `${PERSISTENT_DATA_PATH}/.wwebjs_cache`; // Renamed to include dot
+// Persistent storage paths - RENDER_DISK_MOUNT_PATH is an example if using Render.
+// For EC2, if you have a mounted disk at /mnt/data, you could use that.
+// Otherwise, it defaults to the current directory './data_veerabot' for persistence.
+const BASE_PERSISTENT_PATH = process.env.VEERABOT_DATA_PATH || './data_veerabot'; 
+const SESSION_PATH = `${BASE_PERSISTENT_PATH}/session`;
+const BACKUP_FILE_PATH = `${BASE_PERSISTENT_PATH}/backup.json`;
+// const CACHE_PATH = `${BASE_PERSISTENT_PATH}/.wwebjs_cache`; // .wwebjs_cache is usually handled internally relative to session/dataPath
 
-// Ensure these directories exist
-// Create PERSISTENT_DATA_PATH first if it's a subdirectory like './data' and not just '.'
-if (PERSISTENT_DATA_PATH !== '.' && !fs.existsSync(PERSISTENT_DATA_PATH)) {
-  fs.mkdirSync(PERSISTENT_DATA_PATH, { recursive: true });
+// Ensure persistent directories exist
+if (!fs.existsSync(BASE_PERSISTENT_PATH)) {
+  fs.mkdirSync(BASE_PERSISTENT_PATH, { recursive: true });
 }
 if (!fs.existsSync(SESSION_PATH)) {
   fs.mkdirSync(SESSION_PATH, { recursive: true });
 }
-// The .wwebjs_cache is often created by the library itself.
-// We might need to configure the client to use CACHE_PATH if possible,
-// or ensure its default location within PERSISTENT_DATA_PATH is used.
-// For now, we'll ensure the base path exists.
-
-// ✅ OS-based Chrome/Chromium path
-let executablePath;
-if (os.platform() === 'win32') {
-  executablePath = undefined;
-} else if (os.platform() === 'linux') {
-  executablePath = '/usr/bin/google-chrome';
-}
-console.log('Launching puppeteer with executablePath:', executablePath);
-
+// Note: .wwebjs_cache is typically created by whatsapp-web.js inside the session path or project root.
+// If using LocalAuth with dataPath, it should handle its cache within that structure.
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: SESSION_PATH }),
   puppeteer: {
-    headless: 'true', // Ensure this is a string 'true' as per original, or boolean true
-    executablePath: executablePath,
-    // userDataDir: CACHE_PATH, // Optional: Puppeteer's own cache. whatsapp-web.js's .wwebjs_cache might be separate.
-                                // The .wwebjs_cache directory is often created at the project root or near the session path.
-                                // By setting dataPath for LocalAuth, related cache might go there.
-                                // If .wwebjs_cache still appears at root, and needs persistence,
-                                // we might need to symlink or find a specific client option.
-                                // For now, focusing on session and backup.json persistence.
-    args: [
+    headless: true, // Recommended for servers
+    // No longer specifying executablePath. whatsapp-web.js will download
+    // and use its own compatible version of Chromium.
+    // Ensure your EC2 instance has permissions and space for this download (~100-300MB in node_modules).
+    args: [ // Common arguments for running headless Chrome on servers
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu'
-    ]
+      '--disable-dev-shm-usage', // Crucial for some environments with limited /dev/shm space
+      '--disable-gpu', // Often recommended for headless, may not be strictly necessary
+      '--no-zygote', // Can help in some environments
+      // '--single-process', // Generally not recommended unless specifically needed and tested
+      // '--disable-software-rasterizer', // Could be tried if GPU issues persist
+      // '--disable-infobars',
+      // '--window-size=1280,720', // Can sometimes help if pages expect a certain viewport
+    ],
   }
 });
+
 let userData = {};
 
 // Google Auth
 const auth = new google.auth.GoogleAuth({
-  credentials: creds,
+  credentials: creds, // Make sure creds.json is correctly loaded
   scopes: SCOPES,
 });
 const sheets = google.sheets({ version: 'v4', auth });
@@ -91,22 +86,25 @@ async function saveToSheet(data) {
     console.log('✅ Saved to Google Sheet.');
   } catch (error) {
     console.error('❌ Sheet error:', error.message);
+    console.error(error.stack); // Log more details for the sheet error
   }
 
   try {
     let backup = [];
-    if (fs.existsSync(BACKUP_FILE_PATH)) { // Check if file exists before reading
+    if (fs.existsSync(BACKUP_FILE_PATH)) {
       const fileContent = fs.readFileSync(BACKUP_FILE_PATH, 'utf8');
-      if (fileContent) { // Ensure content is not empty before parsing
+      if (fileContent) {
         backup = JSON.parse(fileContent);
       }
     }
     backup.push(row);
     fs.writeFileSync(BACKUP_FILE_PATH, JSON.stringify(backup, null, 2));
-  } catch (error) { // Catch specific errors if possible, or broader if writing initial file
+    console.log('💾 Saved to local backup:', BACKUP_FILE_PATH);
+  } catch (error) {
     console.error('❌ Backup file error:', error.message);
-    // Attempt to write a new file if read failed or it was empty/corrupt, or if it's the first run
+    // Attempt to write a new file if read failed or it was empty/corrupt
     fs.writeFileSync(BACKUP_FILE_PATH, JSON.stringify([row], null, 2));
+    console.log('💾 Created new local backup with current entry:', BACKUP_FILE_PATH);
   }
 }
 
@@ -120,6 +118,14 @@ client.on('ready', () => {
   console.log('✅ VeeraBot is ready and online!');
 });
 
+client.on('auth_failure', msg => {
+  console.error('❌ WhatsApp Authentication Failure:', msg);
+});
+
+client.on('disconnected', (reason) => {
+  console.log('🔌 Client was logged out:', reason);
+});
+
 client.on('message', async msg => {
   const id = msg.from;
   const text = msg.body.trim();
@@ -127,64 +133,32 @@ client.on('message', async msg => {
   const u = userData[id];
 
   if (u.step === 0) {
-    await msg.reply(`🌀 Vanakkam, Brave Soul 🌺
-You have reached the *Veera Soul Gateway* — a sacred portal guiding you to our ✨Retreats, 🌱Conscious Investments, and 🛍️ Divine Store Membership.
-
-💠 Why You’re Here — The Deeper Reason
-🌿 The Retreat is not just an event — it is a sacred return to your true self. Here, you awaken, reconnect, and help build a global soul community.
-
-💚 The Investment uplifts lives and gives you 36% annual returns — by supporting women-led startups and bulk sourcing.
-
-🛍️ The Store gives 30–70% savings on essentials — all sourced consciously for our tribe.
-
-✨ This is not a program. It’s a prophecy.
-You are not a customer. You are a creator of the New Earth.
-
-🔹 To begin, please choose your *offering type*:
-Type: Retreat / Store / Investment / Multiple`);
+    await msg.reply("🌀 Vanakkam, Brave Soul 🌺\nYou have reached the *Veera Soul Gateway* — a sacred portal guiding you to our ✨Retreats, 🌱Conscious Investments, and 🛍️ Divine Store Membership.\n\n💠 Why You’re Here — The Deeper Reason\n🌿 The Retreat is not just an event — it is a sacred return to your true self. Here, you awaken, reconnect, and help build a global soul community.\n\n💚 The Investment uplifts lives and gives you 36% annual returns — by supporting women-led startups and bulk sourcing.\n\n🛍️ The Store gives 30–70% savings on essentials — all sourced consciously for our tribe.\n\n✨ This is not a program. It’s a prophecy.\nYou are not a customer. You are a creator of the New Earth.\n\n🔹 To begin, please choose your *offering type*:\nType: Retreat / Store / Investment / Multiple");
     u.step++;
   } else if (u.step === 1) {
     u.type = text;
-    await msg.reply(`🔹 May I know your *full name*, beautiful soul? This will be used to register you into our Sacred Soul Records. 📜`);
+    await msg.reply("🔹 May I know your *full name*, beautiful soul? This will be used to register you into our Sacred Soul Records. 📜");
     u.step++;
   } else if (u.step === 2) {
     u.name = text;
-    await msg.reply(`🔹 Please confirm your *phone number* to stay aligned with your divine path. 📞✨`);
+    await msg.reply("🔹 Please confirm your *phone number* to stay aligned with your divine path. 📞✨");
     u.step++;
   } else if (u.step === 3) {
     u.phone = text;
-    await msg.reply(`🌈 Thank you, beloved.
-Now, to enter this sacred circle, please make your contribution 💸 as guided below:
-
-*Retreat:* ₹6666  
-*Store Membership:* ₹369/year  
-*Investment:* Minimum ₹6000 (returns 3% monthly)
-
-🔐 *Contribution Account Details:*  
-Account Name: **Boysenberry Marketing Private Limited**  
-A/C No: **728405500004**  
-IFSC: **ICIC0007284**  
-UPI: **9443963973@okbizaxis**
-
-💫 You can choose *any one* or *multiple* offerings from above.  
-Once done, send the *Transaction ID* only. 🧾`);
+    await msg.reply("🌈 Thank you, beloved.\nNow, to enter this sacred circle, please make your contribution 💸 as guided below:\n\n*Retreat:* ₹6666  \n*Store Membership:* ₹369/year  \n*Investment:* Minimum ₹6000 (returns 3% monthly)\n\n🔐 *Contribution Account Details:*  \nAccount Name: **Boysenberry Marketing Private Limited**  \nA/C No: **728405500004**  \nIFSC: **ICIC0007284**  \nUPI: **9443963973@okbizaxis**\n\n💫 You can choose *any one* or *multiple* offerings from above.  \nOnce done, send the *Transaction ID* only. 🧾");
     u.step++;
   } else if (u.step === 4) {
     u.txn = text;
-    await msg.reply(`💠 Thank you, ${u.name}. Your offering has been received in the field of light. 🌟
-🧙‍♂️ Our Admin Soul is verifying the divine transaction.
-
-You will soon receive your sacred link or confirmation for:  
-- 🕉️ Retreat Registration  
-- 🌍 Store Membership Access  
-- 💚 Investment Gateway
-
-May divine blessings be with you. You are now a radiant node in the ZentiumX Soul Network. 🔮`);
+    await msg.reply("💠 Thank you, " + u.name + ". Your offering has been received in the field of light. 🌟\n🧙‍♂️ Our Admin Soul is verifying the divine transaction.\n\nYou will soon receive your sacred link or confirmation for:  \n- 🕉️ Retreat Registration  \n- 🌍 Store Membership Access  \n- 💚 Investment Gateway\n\nMay divine blessings be with you. You are now a radiant node in the ZentiumX Soul Network. 🔮");
     await saveToSheet(u);
-    delete userData[id];
+    delete userData[id]; // Clear user state after completion
   }
 });
-client.initialize();
+
+console.log('🚀 Initializing WhatsApp client...');
+client.initialize().catch(err => {
+  console.error('❌ Client initialization error:', err);
+});
 
 
 
